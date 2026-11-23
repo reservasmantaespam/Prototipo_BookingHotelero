@@ -1,0 +1,80 @@
+4681: }
+4682: 
+4683: // ─── Root ─────────────────────────────────────────────────────────────────────
+4684: 
+4685: export default function GuestPage({
+4686:   user,
+4687:   onGuestLogin,
+4688:   onLogout,
+4689:   onAdminAccess,
+4690:   theme = "light",
+4691:   onToggleTheme,
+4692: }: {
+4693:   user: GuestUser | null;
+4694:   onGuestLogin: (u: GuestUser) => void;
+4695:   onLogout: () => void;
+4696:   onAdminAccess?: () => void;
+4697:   theme?: "light" | "dark";
+4698:   onToggleTheme?: () => void;
+4699: }) {
+4700:   const [view, setView] = useState<GuestView>("home");
+4701:   const [params, setParams] = useState<SearchParams>({
+4702:     destination: "",
+4703:     checkIn: addDays(todayStr(), 1),
+4704:     checkOut: addDays(todayStr(), 3),
+4705:     adults: 2,
+4706:     children: 0,
+4707:   });
+4708:   const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+4709:   const [habitacionAReservar, setHabitacionAReservar] = useState<RoomOffer | null>(null);
+4710:   const [planInicialAReservar, setPlanInicialAReservar] = useState<"flexible" | "non_refundable" | "breakfast_plus">("flexible");
+4711: 
+4712:   // Modales
+4713:   const [showLoginModal, setShowLoginModal] = useState(false);
+4714:   const [showConsultModal, setShowConsultModal] = useState(false);
+4715:   const [showAboutModal, setShowAboutModal] = useState(false);
+4716:   const [showLegalModal, setShowLegalModal] = useState(false);
+4717:   const [voucherRes, setVoucherRes] = useState<MyReservation | null>(null);
+4718:   const [showProfileMenu, setShowProfileMenu] = useState(false);
+4719:   const [accountInitialTab, setAccountInitialTab] = useState<"hub" | "reservations" | "personal" | "billing" | "payments" | "about">("hub");
+4720:   const [globalHotelMapOpen, setGlobalHotelMapOpen] = useState(false);
+4721:   const [globalHotelMapTargetId, setGlobalHotelMapTargetId] = useState<string | undefined>(undefined);
+4722: 
+4723:   function handleOpenHotelMap(hotelId?: string) {
+4724:     setGlobalHotelMapTargetId(hotelId);
+4725:     setGlobalHotelMapOpen(true);
+4726:   }
+4727: 
+4728:   // Reservas persistentes
+4729:   const [reservations, setReservations] = useState<MyReservation[]>(() => {
+4730:     try {
+4731:       const saved = localStorage.getItem("alojamanta_guest_reservations") || localStorage.getItem("hoteldirekt_guest_reservations");
+4732:       return saved ? JSON.parse(saved) : INITIAL_DEMO_RESERVATIONS;
+4733:     } catch {
+4734:       return INITIAL_DEMO_RESERVATIONS;
+4735:     }
+4736:   });
+4737: 
+4738:   useEffect(() => {
+4739:     try {
+4740:       localStorage.setItem("alojamanta_guest_reservations", JSON.stringify(reservations));
+4741:     } catch {
+4742:       // Ignorar si no hay storage
+4743:     }
+4744:   }, [reservations]);
+4745: 
+4746:   function handleCancelReservation(resId: string) {
+4747:     setReservations(prev =>
+4748:       prev.map(r => (r.id === resId ? { ...r, status: "cancelled" as const } : r))
+4749:     );
+4750:   }
+4751: 
+4752:   function handleReservationCreated(newRes: MyReservation) {
+4753:     setReservations(prev => [newRes, ...prev]);
+4754:   }
+4755: 
+4756:   const logoClickCount = useRef(0);
+4757:   const logoClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+4758: 
+4759:   function handleSearch() {
+4760:     setView("results");

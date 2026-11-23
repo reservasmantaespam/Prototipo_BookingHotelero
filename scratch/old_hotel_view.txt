@@ -1,0 +1,870 @@
+3431:           </div>
+3432:         </div>
+3433:       </div>
+3434:     </div>
+3435:   );
+3436: }
+3437: 
+3438: // ─── Hotel detail ─────────────────────────────────────────────────────────────
+3439: 
+3440: function HotelDetail({ hotel, params, onBack, onBook, onOpenMap }: { hotel: Hotel; params: SearchParams; onBack: () => void; onBook: (r: RoomOffer, plan?: "flexible" | "non_refundable" | "breakfast_plus") => void; onOpenMap?: (hotelId: string) => void }) {
+3441:   const nights = Math.max(nightsBetween(params.checkIn, params.checkOut), 1);
+3442:   const gallery = [hotel.image, ...hotel.rooms.map(room => room.image)].slice(0, 4);
+3443:   const score10 = Math.min(9.9, Math.max(8.2, Number((hotel.rating * 1.98).toFixed(1))));
+3444:   const subcriteria = [
+3445:     { label: "Limpieza e Higiene", val: Math.min(10, Number((score10 + 0.2).toFixed(1))) },
+3446:     { label: "Ubicación en Manta", val: Math.min(10, Number((score10 + 0.1).toFixed(1))) },
+3447:     { label: "Atención del Personal", val: score10 },
+3448:     { label: "Relación Calidad-Precio", val: Math.max(8.0, Number((score10 - 0.2).toFixed(1))) },
+3449:     { label: "Conectividad WiFi", val: Math.max(8.1, Number((score10 - 0.1).toFixed(1))) },
+3450:   ];
+3451: 
+3452:   // Reseñas y Calificaciones Verificadas
+3453:   const initialHotelReviews: HotelReview[] = DEFAULT_HOTEL_REVIEWS[hotel.id] || [
+3454:     {
+3455:       id: `rev-${hotel.id}-1`,
+3456:       hotelId: hotel.id,
+3457:       guestName: "Mariana Viteri",
+3458:       city: "Portoviejo",
+3459:       resId: "RES-10482",
+3460:       rating: Math.min(5.0, Number(hotel.rating.toFixed(1))),
+3461:       title: `Excelente atención y estancia en ${hotel.name}`,
+3462:       comment: "Muy limpio, habitación cómoda y la atención de recepción fue cordial. El proceso de voucher en línea funcionó de maravilla al arribar.",
+3463:       tripType: "PAREJA",
+3464:       date: "14 de Agosto, 2026",
+3465:       pros: "Habitación climatizada, limpieza impecable, canje de voucher veloz.",
+3466:       hotelResponse: {
+3467:         author: `Gerencia ${hotel.name}`,
+3468:         date: "15 de Agosto, 2026",
+3469:         text: "Muchas gracias Mariana por su amable reseña. ¡Nos complace haber hecho su estancia memorable!",
+3470:       },
+3471:     },
+3472:     {
+3473:       id: `rev-${hotel.id}-2`,
+3474:       hotelId: hotel.id,
+3475:       guestName: "Andrés Peñafiel",
+3476:       city: "Quito",
+3477:       resId: "RES-10519",
+3478:       rating: 4.6,
+3479:       title: "Gran relación calidad-precio en Manta",
+3480:       comment: "Buscábamos una opción cómoda para el fin de semana y superó nuestras expectativas. Cerca de puntos de interés y transporte.",
+3481:       tripType: "FAMILIAR",
+3482:       date: "05 de Agosto, 2026",
+3483:       pros: "Camas confortables, ambiente tranquilo.",
+3484:     },
+3485:   ];
+3486: 
+3487:   const [reviewsList, setReviewsList] = useState<HotelReview[]>(() => {
+3488:     try {
+3489:       const saved = localStorage.getItem(`alojamanta_reviews_${hotel.id}`);
+3490:       return saved ? JSON.parse(saved) : initialHotelReviews;
+3491:     } catch {
+3492:       return initialHotelReviews;
+3493:     }
+3494:   });
+3495: 
+3496:   const [showAddReview, setShowAddReview] = useState(false);
+3497:   const [filterTrip, setFilterTrip] = useState<string>("TODOS");
+3498:   const [newReview, setNewReview] = useState({
+3499:     name: "",
+3500:     city: "Manta",
+3501:     resId: "",
+3502:     rating: 5,
+3503:     title: "",
+3504:     comment: "",
+3505:     tripType: "PAREJA" as "PAREJA" | "FAMILIAR" | "NEGOCIOS" | "SOLO" | "AMIGOS",
+3506:     pros: "",
+3507:     cons: "",
+3508:   });
+3509: 
+3510:   function handleSubmitReview(e: React.FormEvent) {
+3511:     e.preventDefault();
+3512:     if (!newReview.name || !newReview.comment || !newReview.title) {
+3513:       alert("Por favor completa los campos obligatorios.");
+3514:       return;
+3515:     }
+3516:     const created: HotelReview = {
+3517:       id: `rev-${Date.now()}`,
+3518:       hotelId: hotel.id,
+3519:       guestName: newReview.name,
+3520:       city: newReview.city,
+3521:       resId: newReview.resId ? newReview.resId.toUpperCase() : `RES-${Math.floor(10000 + Math.random() * 89999)}`,
+3522:       rating: Number(newReview.rating),
+3523:       title: newReview.title,
+3524:       comment: newReview.comment,
+3525:       tripType: newReview.tripType,
+3526:       date: "Hoy (Verificada)",
+3527:       pros: newReview.pros || undefined,
+3528:       cons: newReview.cons || undefined,
+3529:     };
+3530:     const updated = [created, ...reviewsList];
+3531:     setReviewsList(updated);
+3532:     try {
+3533:       localStorage.setItem(`alojamanta_reviews_${hotel.id}`, JSON.stringify(updated));
+3534:     } catch {}
+3535:     setShowAddReview(false);
+3536:     setNewReview({
+3537:       name: "",
+3538:       city: "Manta",
+3539:       resId: "",
+3540:       rating: 5,
+3541:       title: "",
+3542:       comment: "",
+3543:       tripType: "PAREJA",
+3544:       pros: "",
+3545:       cons: "",
+3546:     });
+3547:     alert("¡Muchas gracias! Tu reseña ha sido registrada exitosamente.");
+3548:   }
+3549: 
+3550:   const filteredReviews = filterTrip === "TODOS" ? reviewsList : reviewsList.filter(r => r.tripType === filterTrip);
+3551:   const avgStars = reviewsList.length ? (reviewsList.reduce((acc, r) => acc + r.rating, 0) / reviewsList.length).toFixed(1) : hotel.rating.toFixed(1);
+3552: 
+3553:   const isRural = hotel.city.includes("Santa Marianita") || hotel.city.includes("San Lorenzo") || hotel.city.includes("San Mateo");
+3554:   const landmarks = isRural
+3555:     ? [
+3556:         { icon: "🏖️", place: "Playa local / Zona Costera", dist: "0.2 km", time: "3 min a pie" },
+3557:         { icon: "🌴", place: "Playa El Murciélago & Malecón", dist: "14.5 km", time: "20 min en auto" },
+3558:         { icon: "🛍️", place: "Mall del Pacífico", dist: "15.0 km", time: "22 min en auto" },
+3559:         { icon: "✈️", place: "Aeropuerto Internacional Eloy Alfaro (MEC)", dist: "21.0 km", time: "28 min en auto" },
+3560:         { icon: "🚌", place: "Terminal Terrestre Luis Valdiviezo Morán", dist: "22.5 km", time: "30 min en auto" },
+3561:       ]
+3562:     : [
+3563:         { icon: "🌴", place: "Playa El Murciélago & Malecón Escénico", dist: "0.8 km", time: "4 min en auto / 10 min a pie" },
+3564:         { icon: "🛍️", place: "Mall del Pacífico", dist: "1.1 km", time: "5 min en auto" },
+3565:         { icon: "🍽️", place: "Zona Gastronómica Flavio Reyes / Barbasquillo", dist: "1.4 km", time: "5 min en auto" },
+3566:         { icon: "✈️", place: "Aeropuerto Internacional Eloy Alfaro (MEC)", dist: "6.5 km", time: "12 min en auto" },
+3567:         { icon: "🚌", place: "Terminal Terrestre Luis Valdiviezo Morán", dist: "7.8 km", time: "15 min en auto" },
+3568:       ];
+3569: 
+3570:   return (
+3571:     <div className="max-w-5xl mx-auto px-4 py-6">
+3572:       <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium mb-5 hover:opacity-70 transition-opacity" style={{ color: "#64748b" }}>← Volver a resultados</button>
+3573:       <div className="rounded-2xl overflow-hidden border mb-6 bg-white" style={{ borderColor: "#e2e8f0" }}>
+3574:         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-slate-100">
+3575:           {gallery.map((image, index) => (
+3576:             <div key={`${image}-${index}`} className={`${index === 0 ? "col-span-2 row-span-2" : ""} overflow-hidden`} style={{ minHeight: index === 0 ? 260 : 128 }}>
+3577:               <img
+3578:                 src={image}
+3579:                 alt={index === 0 ? `Vista principal de ${hotel.name}` : `${hotel.name}, vista ${index + 1}`}
+3580:                 className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+3581:               />
+3582:             </div>
+3583:           ))}
+3584:         </div>
+3585:         <div className="p-5">
+3586:           <div className="flex items-start justify-between gap-4 flex-wrap">
+3587:             <div>
+3588:               <div className="flex items-center gap-2 mb-1"><StarsRow n={hotel.stars} /><span className="text-xs text-slate-400">{hotel.city}</span></div>
+3589:               <h1 className="text-2xl font-bold text-slate-800" style={{ fontFamily: "DM Serif Display, serif" }}>{hotel.name}</h1>
+3590:               <div className="flex items-center gap-2 flex-wrap mt-1">
+3591:                 <p className="text-sm text-slate-400">📍 {hotel.address} · {hotel.distance}</p>
+3592:                 {onOpenMap && (
+3593:                   <button
+3594:                     type="button"
+3595:                     onClick={() => onOpenMap(hotel.id)}
+3596:                     className="text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 px-2.5 py-1 rounded-lg border border-amber-500 shadow-xs transition-all cursor-pointer flex items-center gap-1 hover:scale-105"
+3597:                     title="Ver la ubicación exacta de este hotel en el plano satelital y callejero de Manta"
+3598:                   >
+3599:                     <span>🗺️ Ver en plano</span>
+3600:                   </button>
+3601:                 )}
+3602:                 <a
+3603:                   href={buildWhatsAppUrl(hotel.phone, hotel.name)}
+3604:                   target="_blank"
+3605:                   rel="noopener noreferrer"
+3606:                   className="text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 hover:scale-105 no-underline"
+3607:                   title="Contactar al hotel por WhatsApp para consultas de estadía"
+3608:                 >
+3609:                   <span>💬</span>
+3610:                   <span>WhatsApp Hotel</span>
+3611:                 </a>
+3612:               </div>
+3613:             </div>
+3614:             <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl" style={{ background: "#1e3a5f" }}>
+3615:               <span className="text-white font-bold text-xl">{score10}</span>
+3616:               <div><p className="text-amber-300 font-bold text-xs">Excelente (/10)</p><p className="text-white/60 text-[10px]">{hotel.reviews} reseñas verificadas</p></div>
+3617:             </div>
+3618:           </div>
+3619:           <p className="text-sm text-slate-600 mt-3 leading-relaxed">{hotel.description}</p>
+3620:           <div className="mt-5 pt-4 border-t" style={{ borderColor: "#f1f5f9" }}>
+3621:             <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Servicios del alojamiento</p>
+3622:             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+3623:               {hotel.amenities.map(a => (
+3624:                 <div key={a} className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium" style={{ background: "#f8fafc", color: "#475569" }}>
+3625:                   <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#d1fae5", color: "#047857" }}>✓</span>
+3626:                   {a}
+3627:                 </div>
+3628:               ))}
+3629:             </div>
+3630:           </div>
+3631: 
+3632:           {/* Puntos de referencia y tiempos de traslado en Manta */}
+3633:           <div className="mt-5 pt-4 border-t grid grid-cols-1 md:grid-cols-2 gap-4" style={{ borderColor: "#f1f5f9" }}>
+3634:             <div className="rounded-xl p-4 border bg-slate-50/70" style={{ borderColor: "#e2e8f0" }}>
+3635:               <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2.5">
+3636:                 Lugares de interés cercanos
+3637:               </p>
+3638:               <div className="space-y-2 text-xs">
+3639:                 {landmarks.map(lm => (
+3640:                   <div key={lm.place} className="flex items-center justify-between gap-2 py-1 border-b border-slate-200/60 last:border-0">
+3641:                     <span className="text-slate-700 font-medium">
+3642:                       {lm.place}
+3643:                     </span>
+3644:                     <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">{lm.dist} · {lm.time}</span>
+3645:                   </div>
+3646:                 ))}
+3647:               </div>
+3648:             </div>
+3649: 
+3650:             {/* Reseñas y Valoraciones Verificadas */}
+3651:             <div className="rounded-xl p-4 border bg-slate-50/70" style={{ borderColor: "#e2e8f0" }}>
+3652:               <div className="flex items-center justify-between mb-2.5">
+3653:                 <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+3654:                   Puntuación de los huéspedes
+3655:                 </p>
+3656:                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Opiniones verificadas</span>
+3657:               </div>
+3658:               <div className="space-y-2 text-xs">
+3659:                 {subcriteria.map(sc => (
+3660:                   <div key={sc.label}>
+3661:                     <div className="flex justify-between text-[11px] mb-0.5">
+3662:                       <span className="text-slate-600 font-medium">{sc.label}</span>
+3663:                       <span className="font-mono font-bold text-slate-800">{sc.val} / 10</span>
+3664:                     </div>
+3665:                     <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+3666:                       <div className="h-full rounded-full bg-amber-500" style={{ width: `${sc.val * 10}%` }} />
+3667:                     </div>
+3668:                   </div>
+3669:                 ))}
+3670:               </div>
+3671:             </div>
+3672:           </div>
+3673:         </div>
+3674:       </div>
+3675:       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl p-4 mb-5 border" style={{ background: "#fef3c7", borderColor: "#fcd34d" }}>
+3676:         <div className="flex flex-wrap gap-4 text-sm font-semibold text-amber-800">
+3677:           <span>Entrada: {fmtDateShort(params.checkIn)} → Salida: {fmtDateShort(params.checkOut)}</span>
+3678:           <span>{nights} noche{nights > 1 ? "s" : ""}</span>
+3679:           <span>{params.adults + params.children} huésped{params.adults + params.children > 1 ? "es" : ""}</span>
+3680:         </div>
+3681:         <p className="text-xs text-amber-700">Confirmación inmediata · Cancelación flexible según tarifa</p>
+3682:       </div>
+3683:       <h2 className="text-lg font-bold text-slate-800 mb-4" style={{ fontFamily: "DM Serif Display, serif" }}>Tipos de Habitación y Cupos para Venta Web</h2>
+3684:       <div className="space-y-4">
+3685:         {hotel.rooms.filter(r => r.capacity >= params.adults).map(room => (
+3686:           <div key={room.id} className="rounded-2xl overflow-hidden border bg-white hover:shadow-md transition-all" style={{ borderColor: "#e2e8f0" }}>
+3687:             <div className="flex flex-col sm:flex-row">
+3688:               <div className="sm:w-52 flex-shrink-0" style={{ height: 160 }}>
+3689:                 <img src={room.image} alt={room.type} className="w-full h-full object-cover" />
+3690:               </div>
+3691:               <div className="flex-1 p-4 flex flex-col justify-between">
+3692:                 <div>
+3693:                   <div className="flex items-start justify-between gap-2">
+3694:                     <div>
+3695:                       <h3 className="font-bold text-slate-800">{room.type}</h3>
+3696:                       <p className="text-xs text-slate-400 mt-0.5">{room.beds} · {room.size} m² · hasta {room.capacity} pers.</p>
+3697:                     </div>
+3698:                     <div className="text-right flex-shrink-0">
+3699:                       {room.originalPrice && <p className="text-xs line-through text-slate-400">{fmt(room.originalPrice)}</p>}
+3700:                       <p className="text-xl font-bold" style={{ color: "#f59e0b" }}>{fmt(room.pricePerNight)}</p>
+3701:                       <p className="text-[10px] text-slate-400">/ noche base</p>
+3702:                     </div>
+3703:                   </div>
+3704:                   <div className="flex flex-wrap gap-1.5 mt-2">
+3705:                     {room.amenities.map(a => <span key={a} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#f1f5f9", color: "#475569" }}>{a}</span>)}
+3706:                     {room.breakfastIncluded && <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#d1fae5", color: "#065f46" }}>Desayuno incluido</span>}
+3707:                   </div>
+3708:                 </div>
+3709: 
+3710:                 <div className="mt-3 pt-3 border-t space-y-3" style={{ borderColor: "#f1f5f9" }}>
+3711:                   {/* Selector de Planes de Tarifa por Habitación (Booking.com style) */}
+3712:                   <div className="rounded-xl border p-3 bg-slate-50/80 space-y-2 border-slate-200">
+3713:                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between">
+3714:                       <span>Planes tarifarios disponibles para este cuarto</span>
+3715:                       <span className="text-[10px] text-emerald-700 font-semibold">✓ Cancelación flexible o Descuento</span>
+3716:                     </p>
+3717:                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+3718:                       {/* Plan 1: Flexible */}
+3719:                       <div className="p-2.5 rounded-lg border bg-white border-slate-200 flex flex-col justify-between hover:border-amber-400 transition-all">
+3720:                         <div>
+3721:                           <p className="font-bold text-slate-800 text-xs flex items-center gap-1">
+3722:                             <span className="text-emerald-600">✓</span>
+3723:                             <span>Tarifa Flexible</span>
+3724:                           </p>
+3725:                           <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">Cancelación sin costo hasta 24h antes · Paga al llegar o en línea</p>
+3726:                         </div>
+3727:                         <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+3728:                           <span className="font-mono font-bold text-slate-800 text-xs">{fmt(room.pricePerNight)}/n</span>
+3729:                           <button
+3730:                             type="button"
+3731:                             onClick={() => onBook(room, "flexible")}
+3732:                             className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] transition-colors cursor-pointer"
+3733:                           >
+3734:                             Elegir →
+3735:                           </button>
+3736:                         </div>
+3737:                       </div>
+3738: 
+3739:                       {/* Plan 2: No reembolsable -10% */}
+3740:                       <div className="p-2.5 rounded-lg border bg-emerald-50/50 border-emerald-200 flex flex-col justify-between hover:border-emerald-400 transition-all">
+3741:                         <div>
+3742:                           <p className="font-bold text-emerald-900 text-xs flex items-center gap-1">
+3743:                             <span>🏷️</span>
+3744:                             <span>No Reembolsable (-10%)</span>
+3745:                           </p>
+3746:                           <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">Mejor precio garantizado · Ahorro inmediato del 10% en tu estancia</p>
+3747:                         </div>
+3748:                         <div className="mt-2 pt-1.5 border-t border-emerald-100 flex items-center justify-between">
+3749:                           <span className="font-mono font-bold text-emerald-800 text-xs">{fmt(Math.round(room.pricePerNight * 0.90 * 100) / 100)}/n</span>
+3750:                           <button
+3751:                             type="button"
+3752:                             onClick={() => onBook(room, "non_refundable")}
+3753:                             className="px-2.5 py-1 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-[10px] transition-colors cursor-pointer"
+3754:                           >
+3755:                             Elegir →
+3756:                           </button>
+3757:                         </div>
+3758:                       </div>
+3759: 
+3760:                       {/* Plan 3: Con Desayuno Incluido */}
+3761:                       <div className="p-2.5 rounded-lg border bg-amber-50/50 border-amber-200 flex flex-col justify-between hover:border-amber-400 transition-all">
+3762:                         <div>
+3763:                           <p className="font-bold text-slate-800 text-xs flex items-center gap-1">
+3764:                             <span>☕</span>
+3765:                             <span>Con Desayuno Buffet</span>
+3766:                           </p>
+3767:                           <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">Desayuno manabita diario para todos los huéspedes · Cancelación flexible</p>
+3768:                         </div>
+3769:                         <div className="mt-2 pt-1.5 border-t border-amber-100 flex items-center justify-between">
+3770:                           <span className="font-mono font-bold text-slate-800 text-xs">{fmt(room.breakfastIncluded ? room.pricePerNight : room.pricePerNight + 6)}/n</span>
+3771:                           <button
+3772:                             type="button"
+3773:                             onClick={() => onBook(room, "breakfast_plus")}
+3774:                             className="px-2.5 py-1 rounded-md bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] transition-colors cursor-pointer"
+3775:                           >
+3776:                             Elegir →
+3777:                           </button>
+3778:                         </div>
+3779:                       </div>
+3780:                     </div>
+3781:                   </div>
+3782: 
+3783:                   <PriceBreakdownBox
+3784:                     basePrice={room.pricePerNight}
+3785:                     nights={nights}
+3786:                     hasService10={hotel.gravaServicio10}
+3787:                     hotelName={hotel.name}
+3788:                     defaultExpanded={false}
+3789:                     showToggle={true}
+3790:                   />
+3791: 
+3792:                   {/* Alerta de Escasez y Botón Principal */}
+3793:                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+3794:                     <div className="flex items-center gap-2 flex-wrap">
+3795:                       <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+3796:                         room.available <= 2
+3797:                           ? "bg-rose-100 text-rose-800 border border-rose-300"
+3798:                           : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+3799:                       }`}>
+3800:                         {room.available <= 2
+3801:                           ? `🔥 ¡Solo quedan ${room.available} habitaciones disponibles a este precio!`
+3802:                           : `✓ ${room.available} habitaciones disponibles para venta web`}
+3803:                       </span>
+3804:                       {room.available <= 2 && (
+3805:                         <span className="text-[10px] text-slate-400 italic">
+3806:                           ⏱️ Alta demanda para tus fechas en Manta
+3807:                         </span>
+3808:                       )}
+3809:                     </div>
+3810:                     <button
+3811:                       type="button"
+3812:                       onClick={() => onBook(room, "flexible")}
+3813:                       className="px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer whitespace-nowrap self-end sm:self-auto"
+3814:                       style={{ background: "#f59e0b", color: "#0c1220" }}
+3815:                     >
+3816:                       Reservar Habitación →
+3817:                     </button>
+3818:                   </div>
+3819:                 </div>
+3820:               </div>
+3821:             </div>
+3822:           </div>
+3823:         ))}
+3824:       </div>
+3825: 
+3826:       {/* ─── Sección de Calificaciones y Comentarios de Huéspedes Verificados ─── */}
+3827:       <div className="mt-10 pt-8 border-t" style={{ borderColor: "#e2e8f0" }}>
+3828:         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+3829:           <div>
+3830:             <div className="flex items-center gap-2">
+3831:               <h2 className="text-xl font-bold text-slate-800" style={{ fontFamily: "DM Serif Display, serif" }}>
+3832:                 Opiniones y Calificaciones de Huéspedes
+3833:               </h2>
+3834:               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+3835:                 100% Verificadas
+3836:               </span>
+3837:             </div>
+3838:             <p className="text-xs text-slate-500 mt-1">
+3839:               Evaluaciones de clientes que completaron su estancia con reserva garantizada en Manta.
+3840:             </p>
+3841:           </div>
+3842:           <button
+3843:             onClick={() => setShowAddReview(true)}
+3844:             className="px-4 py-2.5 rounded-xl font-bold text-xs hover:opacity-90 transition-all flex items-center gap-1.5 self-start sm:self-auto shadow-sm cursor-pointer"
+3845:             style={{ background: "#0c1220", color: "#f59e0b", border: "1px solid #f59e0b" }}
+3846:           >
+3847:             <span>⭐</span>
+3848:             <span>Escribir una opinión sobre mi estancia</span>
+3849:           </button>
+3850:         </div>
+3851: 
+3852:         {/* Resumen de Calificación Promedio */}
+3853:         <div className="rounded-2xl p-5 mb-6 border bg-slate-50/80 grid grid-cols-1 md:grid-cols-3 gap-4" style={{ borderColor: "#e2e8f0" }}>
+3854:           <div className="flex items-center gap-4">
+3855:             <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-bold text-white shadow-sm" style={{ background: "#1e3a5f" }}>
+3856:               <span className="text-2xl leading-none">{avgStars}</span>
+3857:               <span className="text-[10px] opacity-70">de 5</span>
+3858:             </div>
+3859:             <div>
+3860:               <div className="flex text-amber-400 text-sm">{"★".repeat(Math.round(Number(avgStars)))}{"☆".repeat(5 - Math.round(Number(avgStars)))}</div>
+3861:               <p className="text-xs font-bold text-slate-800 mt-0.5">Excelente reputación</p>
+3862:               <p className="text-[11px] text-slate-500">Basado en {reviewsList.length} reseñas verificadas</p>
+3863:             </div>
+3864:           </div>
+3865:           <div className="flex flex-col justify-center border-l md:border-r border-slate-200/80 md:px-4">
+3866:             <p className="text-xs font-semibold text-slate-700">98% de recomendación</p>
+3867:             <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+3868:               Los huéspedes destacan la atención cordial, la rapidez en recepción y la vista frente al mar.
+3869:             </p>
+3870:           </div>
+3871:           <div className="flex flex-col justify-center">
+3872:             <p className="text-xs font-bold text-slate-700 mb-1.5">Filtrar por tipo de viaje:</p>
+3873:             <div className="flex flex-wrap gap-1.5">
+3874:               {[
+3875:                 { k: "TODOS", l: "Todas" },
+3876:                 { k: "PAREJA", l: "En Pareja" },
+3877:                 { k: "FAMILIAR", l: "Familias" },
+3878:                 { k: "NEGOCIOS", l: "Negocios" },
+3879:               ].map(f => (
+3880:                 <button
+3881:                   key={f.k}
+3882:                   onClick={() => setFilterTrip(f.k)}
+3883:                   className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${filterTrip === f.k ? "bg-amber-500 text-slate-900 font-bold" : "bg-white text-slate-600 border border-slate-200"}`}
+3884:                 >
+3885:                   {f.l}
+3886:                 </button>
+3887:               ))}
+3888:             </div>
+3889:           </div>
+3890:         </div>
+3891: 
+3892:         {/* Lista de Reseñas */}
+3893:         <div className="space-y-4">
+3894:           {filteredReviews.length === 0 ? (
+3895:             <p className="text-center py-8 text-xs text-slate-400">No hay opiniones en esta categoría todavía.</p>
+3896:           ) : (
+3897:             filteredReviews.map(r => (
+3898:               <div key={r.id} className="rounded-2xl border p-5 bg-white shadow-sm hover:shadow-md transition-shadow" style={{ borderColor: "#e2e8f0" }}>
+3899:                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2.5">
+3900:                   <div className="flex items-center gap-3">
+3901:                     <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm" style={{ background: "#3b82f6" }}>
+3902:                       {r.guestName.charAt(0)}
+3903:                     </div>
+3904:                     <div>
+3905:                       <div className="flex items-center gap-2">
+3906:                         <p className="font-bold text-sm text-slate-800">{r.guestName}</p>
+3907:                         <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
+3908:                           ✓ Estancia Verificada
+3909:                         </span>
+3910:                       </div>
+3911:                       <p className="text-[11px] text-slate-400">
+3912:                         📍 {r.city} · {r.date} · <span className="font-mono text-slate-500 font-medium">{r.resId}</span>
+3913:                       </p>
+3914:                     </div>
+3915:                   </div>
+3916:                   <div className="flex items-center gap-2 self-start sm:self-auto">
+3917:                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+3918:                       {r.tripType === "PAREJA" ? "Viaje en Pareja" : r.tripType === "FAMILIAR" ? "Viaje Familiar" : r.tripType === "NEGOCIOS" ? "Viaje de Trabajo" : "Viaje Individual"}
+3919:                     </span>
+3920:                     <div className="flex items-center gap-1 px-2 py-1 rounded bg-amber-50 border border-amber-200">
+3921:                       <span className="text-amber-500 text-xs">★</span>
+3922:                       <span className="font-bold text-xs text-slate-800">{r.rating.toFixed(1)}</span>
+3923:                     </div>
+3924:                   </div>
+3925:                 </div>
+3926: 
+3927:                 <h4 className="font-bold text-sm text-slate-800 mb-1">{r.title}</h4>
+3928:                 <p className="text-xs text-slate-600 leading-relaxed mb-3">{r.comment}</p>
+3929: 
+3930:                 {(r.pros || r.cons) && (
+3931:                   <div className="grid sm:grid-cols-2 gap-2 text-xs mb-3 pt-2 border-t border-slate-100">
+3932:                     {r.pros && (
+3933:                       <div className="flex items-start gap-1.5 text-emerald-800 bg-emerald-50/60 p-2 rounded-lg">
+3934:                         <span className="font-bold text-emerald-600">✓</span>
+3935:                         <span className="text-[11px]"><strong className="font-semibold">Aspectos positivos:</strong> {r.pros}</span>
+3936:                       </div>
+3937:                     )}
+3938:                     {r.cons && (
+3939:                       <div className="flex items-start gap-1.5 text-amber-800 bg-amber-50/60 p-2 rounded-lg">
+3940:                         <span className="font-bold text-amber-600">⚠</span>
+3941:                         <span className="text-[11px]"><strong className="font-semibold">A tener en cuenta:</strong> {r.cons}</span>
+3942:                       </div>
+3943:                     )}
+3944:                   </div>
+3945:                 )}
+3946: 
+3947:                 {/* Respuesta oficial de la gerencia del hotel */}
+3948:                 {r.hotelResponse && (
+3949:                   <div className="mt-3 p-3 rounded-xl border bg-slate-50 text-xs" style={{ borderColor: "#e2e8f0" }}>
+3950:                     <div className="flex items-center justify-between mb-1">
+3951:                       <div className="flex items-center gap-1.5">
+3952:                         <span className="text-xs">🏢</span>
+3953:                         <p className="font-bold text-slate-700 text-[11px]">{r.hotelResponse.author}</p>
+3954:                         <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-semibold">Respuesta Oficial</span>
+3955:                       </div>
+3956:                       <span className="text-[10px] text-slate-400">{r.hotelResponse.date}</span>
+3957:                     </div>
+3958:                     <p className="text-[11px] text-slate-600 leading-relaxed italic">
+3959:                       "{r.hotelResponse.text}"
+3960:                     </p>
+3961:                   </div>
+3962:                 )}
+3963:               </div>
+3964:             ))
+3965:           )}
+3966:         </div>
+3967:       </div>
+3968: 
+3969:       {/* ─── Modal para Dejar Reseña y Calificación ─── */}
+3970:       {showAddReview && (
+3971:         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+3972:           <form
+3973:             onSubmit={handleSubmitReview}
+3974:             className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl my-8 border"
+3975:             style={{ borderColor: "#e2e8f0" }}
+3976:           >
+3977:             <div className="flex justify-between items-start mb-4 pb-3 border-b border-slate-100">
+3978:               <div>
+3979:                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 font-mono">Opinión de Huésped Verificado</p>
+3980:                 <h3 className="text-lg font-bold text-slate-800">Evaluar mi estancia en {hotel.name}</h3>
+3981:               </div>
+3982:               <button
+3983:                 type="button"
+3984:                 onClick={() => setShowAddReview(false)}
+3985:                 className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors cursor-pointer"
+3986:               >
+3987:                 ×
+3988:               </button>
+3989:             </div>
+3990: 
+3991:             <div className="space-y-3.5 text-xs">
+3992:               {/* Estrellas interactivas */}
+3993:               <div>
+3994:                 <label className="block text-slate-600 font-semibold mb-1">Calificación general de tu experiencia *</label>
+3995:                 <div className="flex items-center gap-2">
+3996:                   {[1, 2, 3, 4, 5].map(st => (
+3997:                     <button
+3998:                       key={st}
+3999:                       type="button"
+4000:                       onClick={() => setNewReview({ ...newReview, rating: st })}
+4001:                       className="text-2xl transition-transform hover:scale-110 cursor-pointer"
+4002:                       style={{ color: st <= newReview.rating ? "#f59e0b" : "#cbd5e1" }}
+4003:                     >
+4004:                       ★
+4005:                     </button>
+4006:                   ))}
+4007:                   <span className="text-xs font-bold text-slate-700 ml-2">
+4008:                     {newReview.rating === 5 ? "5.0 - Excelente" : newReview.rating === 4 ? "4.0 - Muy bueno" : newReview.rating === 3 ? "3.0 - Regular" : "2.0 - Mejorable"}
+4009:                   </span>
+4010:                 </div>
+4011:               </div>
+4012: 
+4013:               <div className="grid grid-cols-2 gap-3">
+4014:                 <div>
+4015:                   <label className="block text-slate-600 font-semibold mb-1">Tu nombre completo *</label>
+4016:                   <input
+4017:                     required
+4018:                     value={newReview.name}
+4019:                     onChange={e => setNewReview({ ...newReview, name: e.target.value })}
+4020:                     placeholder="Ej. Carlos Méndez"
+4021:                     className="w-full px-3 py-2 rounded-lg border outline-none text-slate-800"
+4022:                     style={{ borderColor: "#e2e8f0" }}
+4023:                   />
+4024:                 </div>
+4025:                 <div>
+4026:                   <label className="block text-slate-600 font-semibold mb-1">Ciudad de procedencia</label>
+4027:                   <input
+4028:                     value={newReview.city}
+4029:                     onChange={e => setNewReview({ ...newReview, city: e.target.value })}
+4030:                     placeholder="Ej. Quito / Portoviejo"
+4031:                     className="w-full px-3 py-2 rounded-lg border outline-none text-slate-800"
+4032:                     style={{ borderColor: "#e2e8f0" }}
+4033:                   />
+4034:                 </div>
+4035:               </div>
+4036: 
+4037:               <div className="grid grid-cols-2 gap-3">
+4038:                 <div>
+4039:                   <label className="block text-slate-600 font-semibold mb-1">Código de reserva o voucher</label>
+4040:                   <input
+4041:                     value={newReview.resId}
+4042:                     onChange={e => setNewReview({ ...newReview, resId: e.target.value })}
+4043:                     placeholder="Ej. RES-10482"
+4044:                     className="w-full px-3 py-2 rounded-lg border outline-none font-mono text-slate-800"
+4045:                     style={{ borderColor: "#e2e8f0" }}
+4046:                   />
+4047:                 </div>
+4048:                 <div>
+4049:                   <label className="block text-slate-600 font-semibold mb-1">Motivo de tu viaje</label>
+4050:                   <select
+4051:                     value={newReview.tripType}
+4052:                     onChange={e => setNewReview({ ...newReview, tripType: e.target.value as any })}
+4053:                     className="w-full px-3 py-2 rounded-lg border outline-none text-slate-800 bg-white"
+4054:                     style={{ borderColor: "#e2e8f0" }}
+4055:                   >
+4056:                     <option value="PAREJA">En Pareja</option>
+4057:                     <option value="FAMILIAR">Familiar con niños</option>
+4058:                     <option value="NEGOCIOS">Trabajo / Negocios</option>
+4059:                     <option value="SOLO">Individual</option>
+4060:                     <option value="AMIGOS">Grupo de amigos</option>
+4061:                   </select>
+4062:                 </div>
+4063:               </div>
+4064: 
+4065:               <div>
+4066:                 <label className="block text-slate-600 font-semibold mb-1">Título de tu opinión *</label>
+4067:                 <input
+4068:                   required
+4069:                   value={newReview.title}
+4070:                   onChange={e => setNewReview({ ...newReview, title: e.target.value })}
+4071:                   placeholder="Ej. Inolvidable vista al mar y descanso absoluto"
+4072:                   className="w-full px-3 py-2 rounded-lg border outline-none text-slate-800 font-medium"
+4073:                   style={{ borderColor: "#e2e8f0" }}
+4074:                 />
+4075:               </div>
+4076: 
+4077:               <div>
+4078:                 <label className="block text-slate-600 font-semibold mb-1">Comentario detallado *</label>
+4079:                 <textarea
+4080:                   required
+4081:                   rows={3}
+4082:                   value={newReview.comment}
+4083:                   onChange={e => setNewReview({ ...newReview, comment: e.target.value })}
+4084:                   placeholder="Comparte tu experiencia: atención de recepción, comodidad de la habitación, desayuno, cercanía a la playa..."
+4085:                   className="w-full px-3 py-2 rounded-lg border outline-none text-slate-800 resize-none leading-relaxed"
+4086:                   style={{ borderColor: "#e2e8f0" }}
+4087:                 />
+4088:               </div>
+4089: 
+4090:               <div className="grid grid-cols-2 gap-3">
+4091:                 <div>
+4092:                   <label className="block text-slate-600 font-semibold mb-1">Aspectos positivos (opcional)</label>
+4093:                   <input
+4094:                     value={newReview.pros}
+4095:                     onChange={e => setNewReview({ ...newReview, pros: e.target.value })}
+4096:                     placeholder="Ej. WiFi rápido, cama King, vista"
+4097:                     className="w-full px-3 py-2 rounded-lg border outline-none text-slate-800"
+4098:                     style={{ borderColor: "#e2e8f0" }}
+4099:                   />
+4100:                 </div>
+4101:                 <div>
+4102:                   <label className="block text-slate-600 font-semibold mb-1">Aspectos a mejorar (opcional)</label>
+4103:                   <input
+4104:                     value={newReview.cons}
+4105:                     onChange={e => setNewReview({ ...newReview, cons: e.target.value })}
+4106:                     placeholder="Ej. Parqueadero, ascensor..."
+4107:                     className="w-full px-3 py-2 rounded-lg border outline-none text-slate-800"
+4108:                     style={{ borderColor: "#e2e8f0" }}
+4109:                   />
+4110:                 </div>
+4111:               </div>
+4112:             </div>
+4113: 
+4114:             <div className="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+4115:               <button
+4116:                 type="button"
+4117:                 onClick={() => setShowAddReview(false)}
+4118:                 className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+4119:               >
+4120:                 Cancelar
+4121:               </button>
+4122:               <button
+4123:                 type="submit"
+4124:                 className="px-5 py-2 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+4125:                 style={{ background: "#f59e0b", color: "#0c1220" }}
+4126:               >
+4127:                 Publicar opinión verificada
+4128:               </button>
+4129:             </div>
+4130:           </form>
+4131:         </div>
+4132:       )}
+4133:     </div>
+4134:   );
+4135: }
+4136: 
+4137: // ─── Results ──────────────────────────────────────────────────────────────────
+4138: 
+4139: function ResultsView({ params, onChange, onSearch, onSelect, onOpenMap }: { params: SearchParams; onChange: (p: SearchParams) => void; onSearch: () => void; onSelect: (h: Hotel) => void; onOpenMap?: (hotelId?: string) => void }) {
+4140:   const [stars, setStars] = useState<number[]>([]);
+4141:   const [maxPrice, setMaxPrice] = useState(250);
+4142:   const [classification, setClassification] = useState<string>("all");
+4143:   const [parish, setParish] = useState<string>("all");
+4144:   const [sortBy, setSortBy] = useState<"price" | "rating">("rating");
+4145: 
+4146:   // Filtros de Estancia Populares (Booking/Expedia style)
+4147:   const [filterParking, setFilterParking] = useState(false);
+4148:   const [filterPetFriendly, setFilterPetFriendly] = useState(false);
+4149:   const [filterBreakfast, setFilterBreakfast] = useState(false);
+4150:   const [filterPool, setFilterPool] = useState(false);
+4151:   const [filterAC, setFilterAC] = useState(false);
+4152:   const [filterBeachfront, setFilterBeachfront] = useState(false);
+4153: 
+4154:   const nights = nightsBetween(params.checkIn, params.checkOut);
+4155:   let results = HOTELS.filter(h => {
+4156:     const d = !params.destination || h.city.toLowerCase().includes(params.destination.toLowerCase()) || (h.parish && h.parish.toLowerCase().includes(params.destination.toLowerCase()));
+4157:     const s = stars.length === 0 || stars.includes(h.stars);
+4158:     const p = h.priceFrom <= maxPrice;
+4159:     const c = h.rooms.some(r => r.capacity >= params.adults);
+4160:     const cl = classification === "all" || (h.classification && h.classification.toLowerCase() === classification.toLowerCase());
+4161:     const pa = parish === "all" || (h.parish && h.parish.toLowerCase() === parish.toLowerCase());
+4162: 
+4163:     const matchPark = !filterParking || h.amenities.some(a => a.toLowerCase().includes("parqueadero") || a.toLowerCase().includes("estacionamiento")) || h.tags.some(t => t.toLowerCase().includes("parqueadero"));
+4164:     const matchPet = !filterPetFriendly || h.amenities.some(a => a.toLowerCase().includes("mascota") || a.toLowerCase().includes("pet")) || h.tags.some(t => t.toLowerCase().includes("mascota") || t.toLowerCase().includes("pet"));
+4165:     const matchBf = !filterBreakfast || h.amenities.some(a => a.toLowerCase().includes("desayuno")) || h.rooms.some(r => r.breakfastIncluded);
+4166:     const matchPool = !filterPool || h.amenities.some(a => a.toLowerCase().includes("piscina")) || h.tags.some(t => t.toLowerCase().includes("piscina"));
+4167:     const matchAC = !filterAC || h.amenities.some(a => a.toLowerCase().includes("aire") || a.toLowerCase().includes("a/c") || a.toLowerCase().includes("climatizado"));
+4168:     const matchBeach = !filterBeachfront || h.tags.some(t => t.toLowerCase().includes("mar") || t.toLowerCase().includes("playa"));
+4169: 
+4170:     return d && s && p && c && cl && pa && matchPark && matchPet && matchBf && matchPool && matchAC && matchBeach;
+4171:   });
+4172:   if (sortBy === "price") results = [...results].sort((a, b) => a.priceFrom - b.priceFrom);
+4173:   if (sortBy === "rating") results = [...results].sort((a, b) => b.rating - a.rating);
+4174: 
+4175:   return (
+4176:     <div style={{ background: "#f8fafc", minHeight: "100vh" }}>
+4177:       <div className="sticky top-0 z-20 border-b shadow-sm" style={{ background: "#fff", borderColor: "#e2e8f0" }}>
+4178:         <div className="max-w-5xl mx-auto px-4 py-3">
+4179:           <SearchBar params={params} onChange={onChange} onSearch={onSearch} variant="sticky" />
+4180:         </div>
+4181:       </div>
+4182:       <div className="max-w-5xl mx-auto px-4 py-6 flex gap-5">
+4183:         <aside className="w-56 flex-shrink-0 hidden lg:block space-y-4">
+4184:           <div className="rounded-xl p-4 border bg-white" style={{ borderColor: "#e2e8f0" }}>
+4185:             <div className="flex items-center justify-between mb-3">
+4186:               <h4 className="font-bold text-slate-700 text-sm">Categoría</h4>
+4187:               {stars.length > 0 && (
+4188:                 <button onClick={() => setStars([])} className="text-[11px] text-amber-600 hover:underline">Limpiar</button>
+4189:               )}
+4190:             </div>
+4191:             {[5, 4, 3, 2, 1].map(s => (
+4192:               <label key={s} className="flex items-center justify-between gap-1 mb-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+4193:                 <div className="flex items-center gap-1.5">
+4194:                   <input
+4195:                     type="checkbox"
+4196:                     className="accent-amber-400"
+4197:                     checked={stars.includes(s)}
+4198:                     onChange={() => setStars(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+4199:                   />
+4200:                   <div className="flex gap-0.5">
+4201:                     {Array.from({ length: s }).map((_, i) => <span key={i} style={{ color: "#f59e0b", fontSize: 11 }}>★</span>)}
+4202:                     {Array.from({ length: 5 - s }).map((_, i) => <span key={i} style={{ color: "#d1d5db", fontSize: 11 }}>★</span>)}
+4203:                   </div>
+4204:                   <span className="text-[11px] text-slate-600 font-medium">
+4205:                     {s === 5 ? "5★ Lujo" : s === 4 ? "4★ Primera" : s === 3 ? "3★ Superior" : s === 2 ? "2★ Turista" : "1★ Económico"}
+4206:                   </span>
+4207:                 </div>
+4208:                 <span className="text-[10px] text-slate-400 font-mono">({HOTELS.filter(h => h.stars === s).length})</span>
+4209:               </label>
+4210:             ))}
+4211:           </div>
+4212: 
+4213:           {/* Filtros Populares de Estancia (Parking, Pet Friendly, Desayuno, A/C, Piscina) */}
+4214:           <div className="rounded-xl p-4 border bg-white" style={{ borderColor: "#e2e8f0" }}>
+4215:             <div className="flex items-center justify-between mb-2.5">
+4216:               <h4 className="font-bold text-slate-700 text-sm">Filtros Populares</h4>
+4217:               {(filterParking || filterPetFriendly || filterBreakfast || filterPool || filterAC || filterBeachfront) && (
+4218:                 <button
+4219:                   type="button"
+4220:                   onClick={() => {
+4221:                     setFilterParking(false);
+4222:                     setFilterPetFriendly(false);
+4223:                     setFilterBreakfast(false);
+4224:                     setFilterPool(false);
+4225:                     setFilterAC(false);
+4226:                     setFilterBeachfront(false);
+4227:                   }}
+4228:                   className="text-[10px] font-bold text-amber-600 hover:underline cursor-pointer"
+4229:                 >
+4230:                   Limpiar
+4231:                 </button>
+4232:               )}
+4233:             </div>
+4234:             <div className="space-y-1.5 text-xs">
+4235:               <label className="flex items-center justify-between gap-1.5 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+4236:                 <div className="flex items-center gap-2">
+4237:                   <input
+4238:                     type="checkbox"
+4239:                     checked={filterParking}
+4240:                     onChange={e => setFilterParking(e.target.checked)}
+4241:                     className="accent-amber-500 rounded cursor-pointer"
+4242:                   />
+4243:                   <span className="text-slate-700 font-medium">🅿️ Parqueadero gratis</span>
+4244:                 </div>
+4245:               </label>
+4246: 
+4247:               <label className="flex items-center justify-between gap-1.5 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+4248:                 <div className="flex items-center gap-2">
+4249:                   <input
+4250:                     type="checkbox"
+4251:                     checked={filterPetFriendly}
+4252:                     onChange={e => setFilterPetFriendly(e.target.checked)}
+4253:                     className="accent-amber-500 rounded cursor-pointer"
+4254:                   />
+4255:                   <span className="text-slate-700 font-medium">🐾 Admite mascotas</span>
+4256:                 </div>
+4257:               </label>
+4258: 
+4259:               <label className="flex items-center justify-between gap-1.5 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+4260:                 <div className="flex items-center gap-2">
+4261:                   <input
+4262:                     type="checkbox"
+4263:                     checked={filterBreakfast}
+4264:                     onChange={e => setFilterBreakfast(e.target.checked)}
+4265:                     className="accent-amber-500 rounded cursor-pointer"
+4266:                   />
+4267:                   <span className="text-slate-700 font-medium">☕ Desayuno incluido</span>
+4268:                 </div>
+4269:               </label>
+4270: 
+4271:               <label className="flex items-center justify-between gap-1.5 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+4272:                 <div className="flex items-center gap-2">
+4273:                   <input
+4274:                     type="checkbox"
+4275:                     checked={filterAC}
+4276:                     onChange={e => setFilterAC(e.target.checked)}
+4277:                     className="accent-amber-500 rounded cursor-pointer"
+4278:                   />
+4279:                   <span className="text-slate-700 font-medium">❄️ Aire Acondicionado</span>
+4280:                 </div>
+4281:               </label>
+4282: 
+4283:               <label className="flex items-center justify-between gap-1.5 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+4284:                 <div className="flex items-center gap-2">
+4285:                   <input
+4286:                     type="checkbox"
+4287:                     checked={filterPool}
+4288:                     onChange={e => setFilterPool(e.target.checked)}
+4289:                     className="accent-amber-500 rounded cursor-pointer"
+4290:                   />
+4291:                   <span className="text-slate-700 font-medium">🏊 Con Piscina</span>
+4292:                 </div>
+4293:               </label>
+4294: 
+4295:               <label className="flex items-center justify-between gap-1.5 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors">
+4296:                 <div className="flex items-center gap-2">
+4297:                   <input
+4298:                     type="checkbox"
+4299:                     checked={filterBeachfront}
+4300:                     onChange={e => setFilterBeachfront(e.target.checked)}

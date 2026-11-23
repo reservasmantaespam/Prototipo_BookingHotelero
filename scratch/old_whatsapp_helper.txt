@@ -1,0 +1,40 @@
+16: } from "./mantaHotels";
+17: import MantaMapModal from "./MantaMapModal";
+18: 
+19: // ─── Types ────────────────────────────────────────────────────────────────────
+20: 
+21: type GuestView = "home" | "results" | "hotel" | "account";
+22: 
+23: // ─── Helper de Enlace Directo a WhatsApp para Hoteles de Manta ────────────────
+24: function buildWhatsAppUrl(
+25:   phone: string | undefined,
+26:   hotelName: string,
+27:   resId?: string,
+28:   guestName?: string,
+29:   checkIn?: string,
+30:   checkOut?: string,
+31:   roomType?: string,
+32:   paymentMethod?: string,
+33:   balanceDue?: number
+34: ): string {
+35:   const raw = (phone || "593999999999").replace(/\D/g, "");
+36:   let formatted = raw;
+37:   if (!formatted.startsWith("593")) {
+38:     if (formatted.startsWith("0")) {
+39:       formatted = "593" + formatted.slice(1);
+40:     } else {
+41:       formatted = "593" + formatted;
+42:     }
+43:   }
+44:   let msg = "";
+45:   if (resId) {
+46:     const payText = paymentMethod && paymentMethod.includes("HOTEL")
+47:       ? `Modalidad: Pago en recepción al llegar (Saldo a liquidar en check-in: US$${(balanceDue ?? 0).toFixed(2)})`
+48:       : `Modalidad: Pagado 100% en línea (Saldo: US$0.00)`;
+49:     msg = `¡Hola ${hotelName}! Acabo de confirmar mi reserva #${resId} a través del portal de Manta para el ${checkIn || ""} al ${checkOut || ""} (${roomType || "Habitación"}). Mi nombre es ${guestName || "Huésped"}. ${payText}. Quisiera coordinar detalles de mi llegada.`;
+50:   } else {
+51:     msg = `¡Hola ${hotelName}! Vi su alojamiento en el portal oficial de Manta y quisiera consultar sobre disponibilidad y tarifas para mi estancia.`;
+52:   }
+53:   return `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
+54: }
+55: 

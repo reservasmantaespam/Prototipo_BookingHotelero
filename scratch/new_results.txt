@@ -1,0 +1,160 @@
+// ─── Results ──────────────────────────────────────────────────────────────────
+
+function ResultsView({ params, onChange, onSearch, onSelect }: { params: SearchParams; onChange: (p: SearchParams) => void; onSearch: () => void; onSelect: (h: Hotel) => void }) {
+  const tx = useI18n();
+  const [stars, setStars] = useState<number[]>([]);
+  const [maxPrice, setMaxPrice] = useState(250);
+  const [classification, setClassification] = useState<string>("all");
+  const [parish, setParish] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"price" | "rating">("rating");
+  const [showResultsMap, setShowResultsMap] = useState(false);
+  const nights = nightsBetween(params.checkIn, params.checkOut);
+  let results = HOTELS.filter(h => {
+    const d = !params.destination || h.city.toLowerCase().includes(params.destination.toLowerCase()) || (h.parish && h.parish.toLowerCase().includes(params.destination.toLowerCase()));
+    const s = stars.length === 0 || stars.includes(h.stars);
+    const p = h.priceFrom <= maxPrice;
+    const c = h.rooms.some(r => r.capacity >= params.adults);
+    const cl = classification === "all" || (h.classification && h.classification.toLowerCase() === classification.toLowerCase());
+    const pa = parish === "all" || (h.parish && h.parish.toLowerCase() === parish.toLowerCase());
+    return d && s && p && c && cl && pa;
+  });
+  if (sortBy === "price") results = [...results].sort((a, b) => a.priceFrom - b.priceFrom);
+  if (sortBy === "rating") results = [...results].sort((a, b) => b.rating - a.rating);
+
+  return (
+    <div style={{ background: "var(--background)", minHeight: "100vh" }}>
+      <div className="sticky top-0 z-20 border-b shadow-sm" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <SearchBar params={params} onChange={onChange} onSearch={onSearch} variant="sticky" onSelectHotel={onSelect} />
+        </div>
+      </div>
+      <div className="max-w-5xl mx-auto px-4 py-6 flex gap-5">
+        <aside className="w-56 flex-shrink-0 hidden lg:block space-y-4">
+          <div className="rounded-xl p-4 border bg-card" style={{ borderColor: "var(--border)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-bold text-foreground text-sm">{tx("Categoría")}</h4>
+              {stars.length > 0 && (
+                <button onClick={() => setStars([])} className="text-[11px] text-amber-600 hover:underline">{tx("Limpiar")}</button>
+              )}
+            </div>
+            {[5, 4, 3, 2, 1].map(s => (
+              <label key={s} className="flex items-center justify-between gap-1 mb-2 cursor-pointer hover:bg-background p-1 rounded transition-colors">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    className="accent-amber-400"
+                    checked={stars.includes(s)}
+                    onChange={() => setStars(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                  />
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: s }).map((_, i) => <span key={i} style={{ color: "#f59e0b", fontSize: 11 }}>★</span>)}
+                    {Array.from({ length: 5 - s }).map((_, i) => <span key={i} style={{ color: "#d1d5db", fontSize: 11 }}>★</span>)}
+                  </div>
+                  <span className="text-[11px] ttext-muted-foreground font-medium">
+                    {s === 5 ? tx("5★ Lujo") : s === 4 ? tx("4★ Primera") : s === 3 ? tx("3★ Superior") : s === 2 ? tx("2★ Turista") : tx("1★ Económico")}
+                  </span>
+                </div>
+                <span className="text-[10px] ttext-muted-foreground font-mono">({HOTELS.filter(h => h.stars === s).length})</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="rounded-xl p-4 border bg-card" style={{ borderColor: "var(--border)" }}>
+            <h4 className="font-bold text-foreground text-sm mb-2">{tx("Clasificación")}</h4>
+            <div className="space-y-1">
+              {[
+                { id: "all", label: tx("Todos los tipos"), count: HOTELS.length },
+                { id: "Hotel", label: "Hotel", count: HOTELS.filter(h => h.classification === "Hotel").length },
+                { id: "Hostal", label: "Hostal", count: HOTELS.filter(h => h.classification === "Hostal").length },
+                { id: "Hostería", label: "Hostería", count: HOTELS.filter(h => h.classification === "Hostería").length },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setClassification(item.id)}
+                  className={`w-full flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg text-left transition-all ${classification === item.id ? "bg-amber-100 text-amber-900 font-bold" : "ttext-muted-foreground hover:bg-background"
+                    }`}
+                >
+                  <span>{item.label}</span>
+                  <span className="font-mono text-[10px] ttext-muted-foreground">({item.count})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl p-4 border bg-card" style={{ borderColor: "var(--border)" }}>
+            <h4 className="font-bold text-foreground text-sm mb-2">{tx("Parroquia")}</h4>
+            <select
+              value={parish}
+              onChange={e => setParish(e.target.value)}
+              className="w-full text-xs rounded-lg border p-2 bg-background border-border text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="all">{tx("Todas las parroquias (116)")}</option>
+              {Array.from(new Set(HOTELS.map(h => h.parish).filter(Boolean))).sort().map(p => (
+                <option key={p} value={p}>{p} ({HOTELS.filter(h => h.parish === p).length})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="rounded-xl p-4 border bg-card" style={{ borderColor: "var(--border)" }}>
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-bold text-foreground text-sm">{tx("Precio máx./noche")}</h4>
+              <span className="font-bold text-amber-600 text-sm font-mono">${maxPrice}</span>
+            </div>
+            <input
+              type="range"
+              min={25}
+              max={300}
+              step={5}
+              value={maxPrice}
+              onChange={e => setMaxPrice(Number(e.target.value))}
+              className="w-full accent-amber-500 cursor-pointer"
+            />
+            <div className="flex justify-between text-[11px] ttext-muted-foreground mt-1">
+              <span>$25</span>
+              <span>$150</span>
+              <span>$300+</span>
+            </div>
+          </div>
+        </aside>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <h2 className="font-bold text-foreground">{results.length} {results.length !== 1 ? tx("alojamientos") : tx("alojamiento")}{params.destination ? ` ${tx("en")} ${params.destination}` : ""}</h2>
+              {nights > 0 && <p className="text-xs ttext-muted-foreground">{nights} {nights > 1 ? tx("noches") : tx("noche")} · {params.adults} {params.adults > 1 ? tx("adultos") : tx("adulto")}</p>}
+            </div>
+            <div className="flex gap-1.5 text-xs items-center">
+              <button onClick={() => setShowResultsMap(true)} className="px-3 py-1.5 rounded-lg font-semibold border bg-card hover:bg-background transition-all" style={{ borderColor: "var(--border)", color: "#334155" }}>🗺️ {tx("Ver en mapa")}</button>
+              <span className="ttext-muted-foreground self-center">{tx("Ordenar:")}</span>
+              {[{ k: "rating" as const, l: tx("Valoración") }, { k: "price" as const, l: tx("Precio") }].map(s => (
+                <button key={s.k} onClick={() => setSortBy(s.k)} className="px-3 py-1.5 rounded-lg font-semibold border transition-all" style={{ background: sortBy === s.k ? "#f59e0b" : "var(--card)", color: sortBy === s.k ? "#0c1220" : "var(--muted-foreground)", borderColor: sortBy === s.k ? "#f59e0b" : "var(--border)" }}>{s.l}</button>
+              ))}
+            </div>
+          </div>
+          <MantaMapModal
+            isOpen={showResultsMap}
+            onClose={() => setShowResultsMap(false)}
+            onSelectDestination={dest => {
+              setShowResultsMap(false);
+              onChange({ ...params, destination: dest });
+            }}
+            onSelectHotel={h => {
+              setShowResultsMap(false);
+              onSelect(h);
+            }}
+            hotels={results}
+          />
+          <div className="space-y-4">
+            {results.map(h => <HotelCard key={h.id} hotel={h} nights={nights} onSelect={() => onSelect(h)} />)}
+            {results.length === 0 && (
+              <div className="text-center py-16 rounded-2xl border bg-card" style={{ borderColor: "var(--border)" }}>
+                <p className="text-4xl mb-3">🏨</p>
+                <p className="font-semibold text-foreground">{tx("No encontramos alojamientos con estos filtros.")}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

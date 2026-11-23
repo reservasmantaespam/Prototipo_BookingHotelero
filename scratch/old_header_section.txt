@@ -1,0 +1,110 @@
+51:     msg = `¡Hola ${hotelName}! Vi su alojamiento en el portal oficial de Manta y quisiera consultar sobre disponibilidad y tarifas para mi estancia.`;
+52:   }
+53:   return `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
+54: }
+55: 
+56: 
+57: interface SearchParams {
+58:   destination: string;
+59:   checkIn: string;
+60:   checkOut: string;
+61:   adults: number;
+62:   children: number;
+63: }
+64: 
+65: export interface HotelReview {
+66:   id: string;
+67:   hotelId: string;
+68:   guestName: string;
+69:   city: string;
+70:   resId: string;
+71:   rating: number; // 1.0 to 5.0
+72:   title: string;
+73:   comment: string;
+74:   tripType: "PAREJA" | "FAMILIAR" | "NEGOCIOS" | "SOLO" | "AMIGOS";
+75:   date: string;
+76:   pros?: string;
+77:   cons?: string;
+78:   hotelResponse?: {
+79:     author: string;
+80:     date: string;
+81:     text: string;
+82:   };
+83: }
+84: 
+85: const DEFAULT_HOTEL_REVIEWS: Record<string, HotelReview[]> = {
+86:   "costa-sol": [
+87:     {
+88:       id: "rev-cs-1",
+89:       hotelId: "costa-sol",
+90:       guestName: "Carlos Méndez",
+91:       city: "Portoviejo",
+92:       resId: "RES-001",
+93:       rating: 5.0,
+94:       title: "Excelente atención y vista inigualable al mar",
+95:       comment: "El proceso de reserva web fue rapidísimo y el voucher digital me lo validaron en menos de 2 minutos en recepción. La cama Queen súper confortable y el desayuno con tigrillo manabita fue excepcional.",
+96:       tripType: "PAREJA",
+97:       date: "18 de Agosto, 2026",
+98:       pros: "Vista panorámica al mar, tigrillo fresco, atención de primera.",
+99:       hotelResponse: {
+100:         author: "Gerencia Hotel Costa Sol",
+101:         date: "19 de Agosto, 2026",
+102:         text: "Muchas gracias estimado Carlos por su excelente valoración. Nos complace que haya disfrutado de nuestra gastronomía manabita. ¡Esperamos tenerlo de vuelta pronto!",
+103:       },
+104:     },
+105:     {
+106:       id: "rev-cs-2",
+107:       hotelId: "costa-sol",
+108:       guestName: "Patricia Ruiz",
+109:       city: "Guayaquil",
+110:       resId: "RES-007",
+111:       rating: 4.8,
+112:       title: "Maravillosa estancia familiar con niños",
+113:       comment: "Solicitamos cuna para nuestro bebé durante la reserva web y ya la tenían armada en la habitación al llegar. La piscina está limpia y la playa queda a pasos.",
+114:       tripType: "FAMILIAR",
+115:       date: "23 de Agosto, 2026",
+116:       pros: "Ambiente muy seguro, piscina para niños y acceso directo a la playa.",
+117:       cons: "El estacionamiento se llena rápido los fines de semana.",
+118:       hotelResponse: {
+119:         author: "Recepción Costa Sol",
+120:         date: "24 de Agosto, 2026",
+121:         text: "Apreciada Patricia, qué alegría que sus pequeños hayan disfrutado de la piscina y la playa. Tomamos nota sobre el flujo del estacionamiento para seguir mejorando.",
+122:       },
+123:     },
+124:     {
+125:       id: "rev-cs-3",
+126:       hotelId: "costa-sol",
+127:       guestName: "Miguel Torres",
+128:       city: "Quito",
+129:       resId: "RES-004",
+130:       rating: 4.6,
+131:       title: "Gran opción para viajes de negocios en Manta",
+132:       comment: "Me emitieron la factura electrónica con RUC corporativo sin ningún contratiempo y el WiFi en la habitación funcionó impecable para videollamadas de trabajo.",
+133:       tripType: "NEGOCIOS",
+134:       date: "20 de Agosto, 2026",
+135:       pros: "Escritorio cómodo, WiFi veloz y factura inmediata para reembolso corporativo.",
+136:     },
+137:   ],
+138: };
+139: 
+140: // ─── Data ─────────────────────────────────────────────────────────────────────
+141: 
+142: const HOTELS: Hotel[] = MANTA_HOTELS;
+143: 
+144: const DESTINATIONS = [
+145:   { city: "Manta - Barbasquillo", img: "https://images.unsplash.com/photo-1563629986-97c92e385f66?w=400&h=300&fit=crop&auto=format", hotels: 18, type: "Playa & Zona Hotelera" },
+146:   { city: "Manta - El Murciélago", img: "https://images.unsplash.com/photo-1563273410-ca16d83b2cce?w=400&h=300&fit=crop&auto=format", hotels: 22, type: "Playa Urbana & Malecón" },
+147:   { city: "Manta - Tarqui", img: "https://images.unsplash.com/photo-1704908327293-82e8a6026450?w=400&h=300&fit=crop&auto=format", hotels: 38, type: "Parroquia Urbana" },
+148:   { city: "Manta - Santa Marianita", img: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&h=300&fit=crop&auto=format", hotels: 9, type: "Parroquia Rural · Kitesurf" },
+149:   { city: "Manta - San Mateo", img: "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?w=400&h=300&fit=crop&auto=format", hotels: 8, type: "Parroquia Urbana · Surf" },
+150:   { city: "Manta - Los Esteros", img: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=400&h=300&fit=crop&auto=format", hotels: 15, type: "Parroquia Urbana" },
+151:   { city: "Manta - San Lorenzo", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop&auto=format", hotels: 4, type: "Parroquia Rural · Pacoche" },
+152:   { city: "Manta - Eloy Alfaro", img: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&h=300&fit=crop&auto=format", hotels: 2, type: "Parroquia Urbana" },
+153: ];
+154: 
+155: const MANTA_PARROQUIAS_OFICIALES = [
+156:   { name: "Manta (Matriz)", query: "Manta", type: "Parroquia Urbana", desc: "Barbasquillo, El Murciélago, Malecón y Centro", count: 40, icon: "🏛️" },
+157:   { name: "Tarqui", query: "Tarqui", type: "Parroquia Urbana", desc: "Playa de Tarqui, hotelería y comercio tradicional", count: 38, icon: "🏖️" },
+158:   { name: "Los Esteros", query: "Los Esteros", type: "Parroquia Urbana", desc: "Zona costera, hoteles y playas del norte", count: 15, icon: "🌊" },
+159:   { name: "San Mateo", query: "San Mateo", type: "Parroquia Urbana", desc: "Puerto pesquero artesanal, acantilados y surf", count: 8, icon: "⛵" },
+160:   { name: "Santa Marianita", query: "Santa Marianita", type: "Parroquia Rural", desc: "Capital del kitesurf del Ecuador y playa amplia", count: 9, icon: "🪁" },
